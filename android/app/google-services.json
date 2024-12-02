@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "20893043280",
+    "project_id": "vehitrack-8cd37",
+    "storage_bucket": "vehitrack-8cd37.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:20893043280:android:b24a30af737c728d521f55",
+        "android_client_info": {
+          "package_name": "vehitrack.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBjFqUV5z4cU9ANNJ85sAcu2tFGyD90EcE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
