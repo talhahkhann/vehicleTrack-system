@@ -142,8 +142,7 @@ class _MyHomePageState extends State<Cnic> {
                   ),
                   Row(
                     children: [
-                      Image.asset("assets/images/cnic.png",
-                          width: 40, height: 30),
+                      Image.asset("assets/id.jpg", width: 40, height: 30),
                       Expanded(
                         child: TextField(
                           controller: textEditingController,
@@ -190,7 +189,7 @@ class _MyHomePageState extends State<Cnic> {
               padding: const EdgeInsets.only(left: 5),
               child: Icon(
                 (text == "Name") ? Icons.person : Icons.date_range,
-                color: Colors.green,
+                color: Colors.brown.shade300,
                 size: 17,
               ),
             ),
@@ -268,15 +267,15 @@ class _MyHomePageState extends State<Cnic> {
         alignment: Alignment.center,
         width: 500,
         decoration: BoxDecoration(
+          color: Colors.brown.shade300,
           borderRadius: BorderRadius.all(Radius.circular(10.0)),
-          gradient: LinearGradient(colors: <Color>[
-            Colors.lightGreen,
-            Colors.green,
-            Colors.green,
-          ]),
         ),
         padding: const EdgeInsets.all(12.0),
-        child: Text('Scan CNIC', style: TextStyle(fontSize: 18)),
+        child: Text('Scan CNIC',
+            style: TextStyle(
+                fontSize: 18,
+                color: Colors.white,
+                fontWeight: FontWeight.bold)),
       ),
     );
   }

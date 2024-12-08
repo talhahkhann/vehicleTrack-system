@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:vehitrack/AuthScreen.dart';
-import 'package:vehitrack/LoginPage/LoginPage.dart';
+import 'package:vehitrack/MainScreen/Regvehicle.dart';
+// Registration form screen
+import 'package:vehitrack/main.dart'; // Home screen
 
 class SplashScreen extends StatefulWidget {
   @override
@@ -12,13 +17,38 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Delay for 3 seconds before navigating to the LoginPage
-    Future.delayed(Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => AuthScreen()),
-      );
-    });
+    navigateBasedOnState();
+  }
+
+  Future<void> navigateBasedOnState() async {
+    // Initialize Firebase
+    await Firebase.initializeApp();
+
+    // Check Shared Preferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isFormCompleted = prefs.getBool('isFormCompleted') ?? false;
+
+    // Get the current user
+    User? user = FirebaseAuth.instance.currentUser;
+
+    // Decide navigation based on user state
+    if (user == null) {
+      // Navigate to Login Screen
+      navigateTo(AuthScreen());
+    } else if (!isFormCompleted) {
+      // Navigate to Registration Form
+      navigateTo(AddDataScreen());
+    } else {
+      // Navigate to Home Screen
+      navigateTo(MyHomePage(title: "Home Page"));
+    }
+  }
+
+  void navigateTo(Widget page) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => page),
+    );
   }
 
   @override
@@ -28,8 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Lottie.asset(
-                'Animation - 1732128982566.json'), // Add your Lottie animation here
+            Lottie.asset('Animation - 1732128982566.json'),
             SizedBox(height: 20),
             Text(
               'Splash Screen',

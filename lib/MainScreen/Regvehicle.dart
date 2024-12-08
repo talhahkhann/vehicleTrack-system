@@ -1,10 +1,17 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
-import 'package:pdf/widgets.dart' as pw;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
+
+import '../main.dart';
 
 class AddDataScreen extends StatefulWidget {
   @override
@@ -21,6 +28,7 @@ class _AddDataScreenState extends State<AddDataScreen> {
   late DateTime selectedDate = DateTime.now();
 
   final _formKey = GlobalKey<FormState>();
+  String? uploadedImageUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -34,30 +42,27 @@ class _AddDataScreenState extends State<AddDataScreen> {
           key: _formKey,
           child: Column(
             children: [
+              GestureDetector(
+                onTap: pickAndUploadImage,
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundImage: uploadedImageUrl != null
+                      ? NetworkImage(uploadedImageUrl!)
+                      : null,
+                  child: uploadedImageUrl == null
+                      ? Icon(Icons.camera_alt, size: 40)
+                      : null,
+                  backgroundColor: Colors.brown.shade300,
+                ),
+              ),
               buildTextField(nameController, 'Name', Icons.person),
               buildTextField(ageController, 'Age', Icons.calendar_today,
                   isNumeric: true),
               buildTextField(phoneController, 'Phone', Icons.phone),
-              buildTextField(positionController, 'Position', Icons.class_,
-                  isNumeric: true),
+              buildTextField(positionController, 'Position', Icons.class_),
               buildTextField(addressController, 'Address', Icons.home),
               buildTextField(monthlyController, 'Security Fee', Icons.money,
                   isNumeric: true),
-              Row(
-                children: [
-                  Expanded(
-                    child: buildTextField(
-                        null,
-                        'visit Date: ${DateFormat('yyyy-MM-dd').format(selectedDate)}',
-                        Icons.date_range,
-                        enabled: false),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.calendar_today, color: Colors.blue),
-                    onPressed: () => _selectDate(context),
-                  ),
-                ],
-              ),
               ElevatedButton(
                 onPressed: addDataToFirestore,
                 child: Text('Submit Data'),
@@ -91,36 +96,76 @@ class _AddDataScreenState extends State<AddDataScreen> {
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2101),
-    );
-    if (picked != null && picked != selectedDate) {
-      setState(() {
-        selectedDate = picked;
-      });
+  Future<void> pickAndUploadImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        String uploadedUrl = await uploadImageToCloudinary(File(image.path));
+        setState(() {
+          uploadedImageUrl = uploadedUrl;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Image uploaded successfully!")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error uploading image: $e")),
+      );
     }
   }
 
-  void addDataToFirestore() async {
+  Future<String> uploadImageToCloudinary(File imageFile) async {
+    final uri =
+        Uri.parse('https://api.cloudinary.com/v1_1/dimowjk2l/image/upload');
+    final request = http.MultipartRequest('POST', uri);
+    request.fields['upload_preset'] = 'Vehi Track';
+    request.files
+        .add(await http.MultipartFile.fromPath('file', imageFile.path));
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      final res = await http.Response.fromStream(response);
+      final data = jsonDecode(res.body);
+      return data['secure_url'];
+    } else {
+      throw Exception('Failed to upload image');
+    }
+  }
+
+  Future<void> addDataToFirestore() async {
     if (_formKey.currentState!.validate()) {
+      final user = FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User not logged in!")),
+        );
+        return;
+      }
+
+      final String uid = user.uid;
+
       DocumentReference ref =
           FirebaseFirestore.instance.collection('trust').doc();
 
       await ref.set({
+        'uid': uid,
         'name': nameController.text,
         'age': int.parse(ageController.text),
         'phone': phoneController.text,
-        'Position': positionController.text,
+        'position': positionController.text,
         'address': addressController.text,
         'fee': double.parse(monthlyController.text),
-        'visitDate': Timestamp.fromDate(selectedDate),
-        'isvisit': false,
+        'isVisit': false,
         'id': ref.id,
+        'imageUrl': uploadedImageUrl,
       });
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isFormCompleted', true);
 
       generateAndSharePdf(ref.id, {
         'name': nameController.text,
@@ -129,8 +174,15 @@ class _AddDataScreenState extends State<AddDataScreen> {
         'position': positionController.text,
         'address': addressController.text,
         'fee': monthlyController.text,
-        'visitDate': DateFormat('yyyy-MM-dd').format(selectedDate),
       });
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+            builder: (context) => MyHomePage(
+                  title: "Home Page",
+                )),
+      );
     }
   }
 
@@ -154,7 +206,8 @@ class _AddDataScreenState extends State<AddDataScreen> {
     final directory = await getApplicationDocumentsDirectory();
     final file = File('${directory.path}/$studentRollNumber-admission.pdf');
     await file.writeAsBytes(await pdf.save());
-    Share.shareXFiles(XFile(file.path) as List<XFile>,
+
+    Share.shareXFiles([XFile(file.path)],
         text: 'Emergency form for $studentRollNumber');
   }
 }

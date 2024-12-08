@@ -5,7 +5,8 @@ import 'package:vehitrack/MainScreen/AI%20Integration/models/ChatModel.dart';
 
 class ChatController {
   static const apiKey = "AIzaSyCc0kgL044WnPJ2F7kavQiGqONGoYIjg7w";
-  final GenerativeModel model = GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
+  final GenerativeModel model =
+      GenerativeModel(model: 'gemini-pro', apiKey: apiKey);
 
   final TextEditingController userInput = TextEditingController();
   final List<Message> messages = [];
@@ -30,7 +31,8 @@ class ChatController {
     if (messageText.isEmpty) return;
 
     // Add user message to the list
-    messages.add(Message(isUser: true, message: messageText, date: DateTime.now()));
+    messages
+        .add(Message(isUser: true, message: messageText, date: DateTime.now()));
 
     // Clear the input field
     userInput.clear();
@@ -40,21 +42,23 @@ class ChatController {
 
     // Display "typing..." indicator
     isTyping = true;
-    messages.add(Message(isUser: false, message: "Typing...", date: DateTime.now()));
+    messages.add(
+        Message(isUser: false, message: "Typing...", date: DateTime.now()));
     updateView();
 
     // Check if the message contains security-related keywords
     if (_isSecurityRelated(messageText)) {
       try {
         // Generate AI response
-        final contextMessage = "The response will only be generated for security-related queries.";
-        final response = await model.generateContent([
-          Content.text("$contextMessage User asked: $messageText")
-        ]);
+        final contextMessage =
+            "The response will only be generated for security-related queries.";
+        final response = await model.generateContent(
+            [Content.text("$contextMessage User asked: $messageText")]);
         final aiMessage = response.text ?? "";
 
         // Replace "typing..." with the actual response
-        messages[messages.length - 1] = Message(isUser: false, message: aiMessage, date: DateTime.now());
+        messages[messages.length - 1] =
+            Message(isUser: false, message: aiMessage, date: DateTime.now());
       } catch (e) {
         // Handle errors (e.g., no response from the server)
         messages[messages.length - 1] = Message(
@@ -82,6 +86,7 @@ class ChatController {
   /// Check if the user's message is related to security
   bool _isSecurityRelated(String message) {
     final lowerCaseMessage = message.toLowerCase();
-    return securityKeywords.any((keyword) => lowerCaseMessage.contains(keyword));
+    return securityKeywords
+        .any((keyword) => lowerCaseMessage.contains(keyword));
   }
 }

@@ -1,7 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:vehitrack/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:vehitrack/MainScreen/Regvehicle.dart'; // Replace with your actual screen
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -14,38 +15,64 @@ class _AuthScreenState extends State<AuthScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Error message state
   String? _errorMessage;
-
-  // To track the current form (SignUp / Login)
   bool _isSignUp = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+
+    if (isLoggedIn) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+            builder: (context) =>
+                AddDataScreen()), // Replace with your actual screen
+      );
+    }
+  }
+
+  Future<void> _setLoginStatus(bool status) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', status);
+  }
 
   Future<void> signUp() async {
     try {
-      // Create user with email and password
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
 
-      // Get the newly created user
       User? user = userCredential.user;
 
       if (user != null) {
-        // Save user data in Firestore
         await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
           'email': user.email,
-          'createdAt': Timestamp.now(), // Timestamp for account creation time
+          'createdAt': Timestamp.now(),
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Sign-up successful!')),
         );
 
-        // Clear the fields after successful sign-up
         _emailController.clear();
         _passwordController.clear();
+
+        await _setLoginStatus(true); // Set login status
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => AddDataScreen()),
+        );
       }
     } on FirebaseAuthException catch (e) {
       setState(() {
@@ -57,26 +84,23 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> signIn() async {
     try {
       await _auth.signInWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-
-      // Navigate to the HomeScreen
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-            builder: (context) => MyHomePage(
-                  title: "Home Screen",
-                )),
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login successful!')),
       );
 
-      // Clear the fields after successful login
       _emailController.clear();
       _passwordController.clear();
+
+      await _setLoginStatus(true); // Set login status
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => AddDataScreen()),
+      );
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -94,7 +118,6 @@ class _AuthScreenState extends State<AuthScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_errorMessage != null) ...[
               Text(
@@ -105,30 +128,24 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-              ),
+              decoration: const InputDecoration(labelText: 'Email'),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password',
-              ),
+              decoration: const InputDecoration(labelText: 'Password'),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _isSignUp ? signUp : signIn,
               child: Text(_isSignUp ? 'Sign Up' : 'Log In'),
             ),
-            const SizedBox(height: 10),
-            // Toggle between sign-up and login
             TextButton(
               onPressed: () {
                 setState(() {
                   _isSignUp = !_isSignUp;
-                  _errorMessage = null; // Clear error when switching
+                  _errorMessage = null;
                 });
               },
               child: Text(
